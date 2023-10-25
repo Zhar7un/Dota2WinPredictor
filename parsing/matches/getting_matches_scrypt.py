@@ -2,10 +2,10 @@ from get_matches import get_matches
 import json
 
 
-number_of_butches = 5
+number_of_butches = 4
 batch_matches_count = 1000
-start_match_id = 7396419423
-start_batch_index = 10
+start_match_id = 7396968391
+start_batch_index = 11
 
 for butch_index in range(start_batch_index, start_batch_index + number_of_butches):
     batch = get_matches(batch_matches_count, start_match_id)

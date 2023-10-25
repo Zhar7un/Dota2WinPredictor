@@ -1,14 +1,21 @@
 import numpy as np
 import pandas as pd
 import json
+import os
 
 ADDITIVE_PROPERTIES_NAMES = ["assists", "deaths", "firstblood_claimed",
                              "gold_per_min", "hero_damage", "hero_healing", "hero_id", "kills", "last_hits",
                              "net_worth", "stuns", "teamfight_participation", "tower_damage", "xp_per_min",
                              "duration", "win", "kda", "courier_kills",
-                             "ancient_kills", "lane_efficiency"]
+                             "ancient_kills", "lane_efficiency",
+                             'damage_taken', 'kills_per_min', 'last_hits_per_min', 'hero_damage_per_min',
+                             'hero_healing_per_min', 'stuns_per_min', 'lhten']
 
-with open('common/heroes.json', 'r') as file:
+current_directory = os.path.dirname(__file__)
+project_root = os.path.abspath(os.path.join(current_directory, "..", ".."))
+heroes_json_path = os.path.join(project_root, "common", "heroes.json")
+
+with open(heroes_json_path, 'r') as file:
     heroes_data = json.load(file)
 
 

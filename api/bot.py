@@ -35,8 +35,8 @@ with open('../common/heroes.json', 'r') as file:
 
 heroes_by_primary_attr = {attribute: [] for attribute in PrimaryAttribute}
 
-for hero_name in heroes_data.values():
-    heroes_by_primary_attr[PrimaryAttribute(hero_name["primary_attr"])].append(hero_name["localized_name"])
+for hero_data in heroes_data.values():
+    heroes_by_primary_attr[PrimaryAttribute(hero_data["primary_attr"])].append(hero_data["localized_name"])
 for heroes_names in heroes_by_primary_attr.values():
     heroes_names.sort()
 
@@ -109,7 +109,6 @@ def handle_pagination(call):
                           chat_id=call.message.chat.id,
                           message_id=call.message.message_id,
                           reply_markup=keyboard)
-
 
 
 @bot.message_handler(func=lambda message: True)

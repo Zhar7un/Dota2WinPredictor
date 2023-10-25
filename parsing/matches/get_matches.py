@@ -18,6 +18,7 @@ def get_parsed_matches_ids(less_than_match_id=None):
     response = requests.get(url)
     if response.status_code != 200:
         print("ERROR while fetching matches ids. Response status code:", response.status_code)
+        return
     print("Getting matches ids is DONE")
     result = response.json()
     return result
@@ -60,16 +61,18 @@ def get_matches(count, start_match_id=None, patch=53, min_duration=1200, lobby_t
     less_than_match_id = start_match_id
     while len(result) < count:
         matches = get_parsed_matches_ids(less_than_match_id)
+        time.sleep(1.01)
+        if matches is None:
+            continue
         less_than_match_id = matches[-1]["match_id"]
         for match in matches:
             loaded_match = get_match_by(match["match_id"])
             time.sleep(1.01)
-            if loaded_match is not None:
-                if loaded_match["patch"] == patch and\
-                        loaded_match["duration"] >= min_duration and\
-                        loaded_match["lobby_type"] == lobby_type:
-                    result.append(loaded_match)
-                    print(f"Adding match is DONE with id {match['match_id']}")
-            else:
+            if loaded_match is None:
                 continue
+            if loaded_match["patch"] == patch and \
+                    loaded_match["duration"] >= min_duration and \
+                    loaded_match["lobby_type"] == lobby_type:
+                result.append(loaded_match)
+                print(f"Adding match is DONE with id {match['match_id']}")
     return result
