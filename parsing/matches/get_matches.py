@@ -14,7 +14,7 @@ REQUIRED_PLAYER_PROPERTIES_NAMES = ["match_id", "assists", "deaths", "firstblood
 def get_parsed_matches_ids(less_than_match_id=None):
     url = "https://api.opendota.com/api/parsedMatches/"
     if less_than_match_id is not None:
-        url += f"?q={less_than_match_id}"
+        url += f"?less_than_match_id={less_than_match_id}"
     response = requests.get(url)
     if response.status_code != 200:
         print("ERROR while fetching matches ids. Response status code:", response.status_code)
@@ -75,4 +75,4 @@ def get_matches(count, start_match_id=None, patch=53, min_duration=1200, lobby_t
                     loaded_match["lobby_type"] == lobby_type:
                 result.append(loaded_match)
                 print(f"Adding match is DONE with id {match['match_id']}")
-    return result
+    return result, less_than_match_id
