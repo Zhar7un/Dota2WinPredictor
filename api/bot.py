@@ -41,6 +41,10 @@ for heroes_names in heroes_by_primary_attr.values():
     heroes_names.sort()
 
 
+def predict(radiant_pick, dire_pick):
+    pass
+
+
 def create_keyboard(message):
     global current_page, heroes_by_primary_attr
     keyboard = types.InlineKeyboardMarkup(row_width=2)
