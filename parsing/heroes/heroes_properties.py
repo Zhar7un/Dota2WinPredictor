@@ -6,10 +6,12 @@ import os
 ADDITIVE_PROPERTIES_NAMES = ["assists", "deaths", "firstblood_claimed",
                              "gold_per_min", "hero_damage", "hero_healing", "hero_id", "kills", "last_hits",
                              "net_worth", "stuns", "teamfight_participation", "tower_damage", "xp_per_min",
-                             "duration", "win", "kda", "courier_kills",
+                             "duration", "win", "kda", "courier_kills", "roshan_kills",
                              "ancient_kills", "lane_efficiency",
                              'damage_taken', 'kills_per_min', 'last_hits_per_min', 'hero_damage_per_min',
                              'hero_healing_per_min', 'stuns_per_min', 'lhten']
+
+BASE_HEROES_PROPERTIES = ["attack_range", "move_speed", "attack_rate"]
 
 current_directory = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(current_directory, "..", ".."))
@@ -33,6 +35,9 @@ class HeroesProperties:
                                                 for player in simpled_match["players"]]
         dt = pd.DataFrame(heroes_properties, columns=ADDITIVE_PROPERTIES_NAMES).set_index('hero_id')
         unique_heroes = dt.groupby("hero_id").mean()
+        unique_heroes[BASE_HEROES_PROPERTIES] = [[heroes_data[heroes_id][base_properties]
+                                                 for base_properties in BASE_HEROES_PROPERTIES]
+                                                 for heroes_id in unique_heroes.index.values.astype(str)]
         return unique_heroes
 
     @staticmethod

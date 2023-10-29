@@ -2,45 +2,33 @@ import numpy as np
 import xgboost as xgb
 import json
 import pickle
-from parsing.matches.get_matches import simplify
 from parsing.preprocessing import preprocess, take_picks
-from parsing.heroes.heroes_properties import HeroesProperties
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 
-baseline_features = ["counter_picks", "synergy_picks"]
-drop_features = ["lane_efficiency", "hero_healing_per_min", "net_worth"]
+baseline_features = ["counter_picks", "synergy_picks", "win"]
+drop_features = ["move_speed", "last_hits_per_min", "hero_damage_per_min",
+                 "gold_per_min", "kills_per_min", "attack_rate", "hero_healing_per_min", "lane_efficiency",
+                 "lhten", "xp_per_min", "stuns_per_min", "deaths", "last_hits", "net_worth", "assists", "hero_healing",
+                 "roshan_kills", "attack_range", "firstblood_claimed"]
 
-all_matches = []
-for index in range(10):
-    with open(f"../parsing/matches/simplified_matches_butch_{index}.json", "r") as json_file:
-        all_matches += json.load(json_file)
+with open("../parsing/matches/simplified_matches/train.json", "r") as file:
+    train = json.load(file)
 
-
-train_matches, val_matches = train_test_split(all_matches, train_size=0.8, random_state=42, shuffle=True)
-
-# heroes_properties = HeroesProperties(*train_matches)
-# with open("heroes_properties.pickle", "wb") as file:
-#     pickle.dump(heroes_properties, file)
 with open("heroes_properties.pickle", "rb") as file:
     heroes_properties = pickle.load(file)
 
-radiant_picks, dire_picks = take_picks(*train_matches)
+radiant_picks, dire_picks = take_picks(*train)
 train_features = preprocess(radiant_picks, dire_picks, heroes_properties).drop(columns=drop_features)
-train_target = np.array([match["radiant_win"] for match in train_matches]).astype(int)
+train_target = np.array([match["radiant_win"] for match in train]).astype(int)
 
-# baseline_features = train_features[baseline_features]
-# baseline_target = train_target
+baseline_features = train_features[baseline_features]
+baseline_target = train_target
 
-radiant_picks, dire_picks = take_picks(*val_matches)
-val_features = preprocess(radiant_picks, dire_picks, heroes_properties).drop(columns=drop_features)
-val_target = np.array([match["radiant_win"] for match in val_matches]).astype(int)
-
-
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 xgb_train = xgb.DMatrix(train_features.values, train_target, feature_names=list(train_features.columns))
-xgb_val = xgb.DMatrix(val_features.values, val_target, feature_names=list(val_features.columns))
-# xgb_baseline = xgb.DMatrix(baseline_features, baseline_target, feature_names=list(baseline_features.columns))
+xgb_baseline = xgb.DMatrix(baseline_features.values, baseline_target, feature_names=list(baseline_features.columns))
 
 baseline_parameters = {
     "objective": "binary:logistic",
@@ -53,10 +41,10 @@ baseline_parameters = {
     "random_seed": 42,
     "eval_metric": 'error',
 
-    "max_depth": 10,
+    "max_depth": 5,
     "max_leaves": 40,
-    "subsample": 0.7,
-    "colsample_bytree": 0.7,
+    "subsample": 0.9,
+    "colsample_bytree": 0.9,
 
     "tree_method": "hist",
     "grow_policy": "lossguide"
@@ -73,64 +61,38 @@ model_parameters = {
     "random_seed": 42,
     "eval_metric": 'error',
 
-    "max_depth": 10,
-    "max_leaves": 40,
-    "subsample": 0.7,
-    "colsample_bytree": 0.7,
+    "max_depth": 5,
+    "max_leaves": 50,
+    "subsample": 0.9,
+    "colsample_bytree": 0.9,
 
     "tree_method": "hist",
     "grow_policy": "lossguide"
 }
 
-# baseline_model = xgb.train(params=baseline_parameters,
-#                            dtrain=xgb_baseline,
-#                            num_boost_round=1000,
-#                            evals=[(xgb_val, "validation")],
-#                            early_stopping_rounds=50)
-model = xgb.train(params=model_parameters,
-                  dtrain=xgb_train,
-                  num_boost_round=1000,
-                  evals=[(xgb_train, "train"), (xgb_val, 'val')],
-                  early_stopping_rounds=50)
+results = xgb.cv(model_parameters, xgb_train, num_boost_round=1000,
+                 folds=skf, verbose_eval=10, metrics={'error'}, early_stopping_rounds=50)
 
-print(model.best_iteration)
-print(accuracy_score(val_target, np.round(model.predict(xgb_val)).astype(int)))
+num_round = results['test-error-mean'].idxmin()
+print(num_round)
+print(1 - results.iloc[num_round, 0], 1 - results.iloc[num_round, 2])
+model = xgb.train(model_parameters, xgb_train, num_round)
+model.save_model("model")
 
-# Отримати важливість ознак
 importance = model.get_fscore()
-
-# Створити сортований список ознак за важливістю
 sorted_importance = sorted(importance.items(), key=lambda x: x[1])
+features, importance = zip(*sorted_importance)
 
-# Розпакувати імена ознак і їх важливості
-features, importances = zip(*sorted_importance)
-
-# Відобразити графік важливості ознак
 plt.figure(figsize=(10, 8))
-plt.barh(range(len(features)), importances, align='center')
+plt.barh(range(len(features)), importance, align='center')
 plt.yticks(range(len(features)), features)
 plt.xlabel('Важливість ознак')
 plt.title('Графік важливості ознак')
 plt.show()
 
-model = xgb.train(params=model_parameters,
-                  dtrain=xgb_train,
-                  num_boost_round=max(1, model.best_iteration))
-print(accuracy_score(val_target, np.round(model.predict(xgb_val)).astype(int)))
+baseline_results = xgb.cv(baseline_parameters, xgb_baseline, num_boost_round=1000,
+                          folds=skf, verbose_eval=10, metrics={'error'}, early_stopping_rounds=50)
 
-# Отримати важливість ознак
-importance = model.get_fscore()
-
-# Створити сортований список ознак за важливістю
-sorted_importance = sorted(importance.items(), key=lambda x: x[1])
-
-# Розпакувати імена ознак і їх важливості
-features, importances = zip(*sorted_importance)
-
-# Відобразити графік важливості ознак
-plt.figure(figsize=(10, 8))
-plt.barh(range(len(features)), importances, align='center')
-plt.yticks(range(len(features)), features)
-plt.xlabel('Важливість ознак')
-plt.title('Графік важливості ознак')
-plt.show()
+num_round = baseline_results['test-error-mean'].idxmin()
+print(num_round)
+print(1 - baseline_results.iloc[num_round, 0], 1 - baseline_results.iloc[num_round, 2])
